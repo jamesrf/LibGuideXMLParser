@@ -7,6 +7,9 @@ import (
 	"os"
 	"regexp"
 	"unicode/utf8"
+	"text/template"
+	"bytes"
+	"github.com/spf13/viper"
 )
 
 type LibGuides struct {
@@ -146,7 +149,7 @@ func (c BadCharCleaner) Read(b []byte) (n int, err error) {
 		if err != nil {
 			return
 		}
-		if (r == '\u0001' || r == '\u0014') && s == 1 {
+		if (r == '\u0001' || r == '\u0014' || r == '\u0019') && s == 1 {
 			continue
 		} else if n+s < len(b) {
 			utf8.EncodeRune(b[n:], r)
@@ -159,20 +162,33 @@ func (c BadCharCleaner) Read(b []byte) (n int, err error) {
 	return
 }
 
-func (a *Asset) getEncoreBibId(r *regexp.Regexp) (s string) {
-	m := r.FindStringSubmatch(a.URL)
-	if len(m) == 2 {
-		s = m[1]
+
+
+type URLRewriter struct {
+	Matcher		*regexp.Regexp
+	Output		*template.Template
+	matchIndex     int
+}
+func NewURLRewriter(in string, out string, idx int) *URLRewriter{
+	r := regexp.MustCompile(in)
+	t :=  template.Must(template.New("name").Parse(out))
+	u := &URLRewriter{Matcher: r, Output:t, matchIndex:idx}
+	return u
+}
+
+func (u *URLRewriter) RewriteURL (a *Asset){
+	m := u.Matcher.FindStringSubmatch(a.URL)
+	if len(m) > 0 {
+		buf := new(bytes.Buffer)
+		s := m[ u.matchIndex ]
+		u.Output.Execute(buf,s)
+		a.URL = buf.String()
 	}
 	return
 }
-func (a *Asset) getEncoreSubjects(r *regexp.Regexp) (s string) {
-	m := r.FindStringSubmatch(a.URL)
-	if len(m) == 3 {
-		s = m[1]
-	}
-	return
-}
+
+
+
 func main() {
 	xmlFile, err := os.Open("export.xml")
 	if err != nil {
@@ -192,18 +208,20 @@ func main() {
 	}
 	fmt.Printf("Done! (%d bytes)\n\n", dec.InputOffset())
 
-	encoreBibURL := regexp.MustCompile("http://encore.vcc.ca/iii/encore/record/C__R(b\\d{7})__S")
-	encoreSubjectURL := regexp.MustCompile("http://encore.vcc.ca/iii/encore/search/C__S(.*)__F(.*)A__O.*")
-
+	encoreBibURL := "http://encore.vcc.ca/iii/encore/record/C__R(b\\d{7})__S"
+	webpacOutputURL :=  "http://webpac.vcc.ca/record={{.}}~S1/"
+	ur := NewURLRewriter(encoreBibURL, webpacOutputURL, 1)
+	
 	for _, guide := range lg.Guides {
 		fmt.Printf("GUIDE:%s\n", guide.Name)
 		for _, page := range guide.Pages {
 			for _, box := range page.Boxes {
 				for _, asset := range box.Assets {
-					bibid := asset.getEncoreBibId(encoreBibURL)
-					if bibid == "" {
-						m := asset.getEncoreSubjects(encoreSubjectURL)
-						fmt.Println(m)
+					oldURL := asset.URL
+					ur.RewriteURL(&asset)
+					if oldURL == asset.URL {
+						fmt.Printf(asset.URL)
+						fmt.Printf("\n")
 					}
 
 				}
