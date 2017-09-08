@@ -1,7 +1,0 @@
-bibid: 
-  input: "http://encore.vcc.ca/iii/encore/record/C__R(b\\d{7})__S"
-  output: "http://webpac.vcc.ca/record={{.}}~S1/"
-  index: 1
-subject:
-  input: "http://encore.vcc.ca/iii/encore/search/C__S(.*)__F.*"
-
