@@ -1,15 +1,20 @@
 package libguidesxml
-import(
-	"os"
+
+import (
 	"bufio"
 	"encoding/xml"
-	"fmt"
+	"log"
+	"os"
 )
+
+
+
+
 
 func Read(filename string) (lg LibGuides) {
 	xmlFile, err := os.Open("export.xml")
 	if err != nil {
-		fmt.Println("Error opening file:", err)
+		log.Println("Error opening file:", err)
 		return
 	}
 	defer xmlFile.Close()
@@ -17,11 +22,11 @@ func Read(filename string) (lg LibGuides) {
 	cr := BadCharCleaner{bufio.NewReader(xmlFile)}
 	dec := xml.NewDecoder(cr)
 
-	fmt.Printf("Reading XML file: ...")
+	log.Println("Reading XML file: ...")
 	err = dec.Decode(&lg)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Done! (%d bytes)\n\n", dec.InputOffset())
+	log.Println("Done! (%d bytes)\n\n", dec.InputOffset())
 	return
 }
